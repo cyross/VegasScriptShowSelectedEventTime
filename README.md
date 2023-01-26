@@ -1,0 +1,2 @@
+# VegasScriptShowSelectedEventTime
+選択したイベントの開始時間と長さを表示するVEGASスクリプト
