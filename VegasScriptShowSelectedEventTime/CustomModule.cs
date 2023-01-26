@@ -12,7 +12,7 @@ namespace VegasScriptShowSelectedEventTime
         private readonly static string CommandName = "ShowTrackLength";
         private readonly static string DisplayName = "選択したイベントの開始位置・長さを表示";
         private readonly static string DockName = "イベントの開始位置・長さ";
-        private CustomCommand myCommand = new CustomCommand(CommandCategory.Tools, CommandName);
+        private CustomCommand myCommand = new CustomCommand(CommandCategory.View, CommandName);
 
         public void InitializeModule(Vegas vegas)
         {
