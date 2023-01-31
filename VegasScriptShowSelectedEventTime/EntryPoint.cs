@@ -8,19 +8,18 @@ namespace VegasScriptShowSelectedEventTime
     {
         public void FromVegas(Vegas vegas)
         {
-            VegasScriptSettings.Load();
             VegasHelper helper = VegasHelper.Instance(vegas);
 
             try
             {
                 TrackEvent e = helper.GetSelectedEvent();
-                long start_nanos = helper.GetEventStartTime(e) + 500000 / 1000000 * 1000000;
-                long length_nanos = helper.GetEventLength(e) + 500000 / 1000000 * 1000000;
+                Timecode event_start_time = helper.GetEventStartTime(e);
+                Timecode event_length = helper.GetEventLength(e);
                 MessageBox.Show(
                     string.Format(
-                        "開始:{0} 長さ:{1}",
-                        VegasHelperUtility.NanoToTimestamp(start_nanos),
-                        VegasHelperUtility.NanoToTimestamp(length_nanos)
+                        "開始:{0} 長さ:{1}", 
+                        event_start_time.ToString(),
+                        event_length.ToString()
                         )
                     );
             }

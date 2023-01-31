@@ -12,7 +12,7 @@ namespace VegasScriptShowSelectedEventTime
         private readonly static string CommandName = "ShowTrackLength";
         private readonly static string DisplayName = "選択したイベントの開始位置・長さを表示";
         private readonly static string DockName = "イベントの開始位置・長さ";
-        private CustomCommand myCommand = new CustomCommand(CommandCategory.View, CommandName);
+        private readonly CustomCommand myCommand = new CustomCommand(CommandCategory.View, CommandName);
 
         public void InitializeModule(Vegas vegas)
         {
@@ -40,8 +40,8 @@ namespace VegasScriptShowSelectedEventTime
             try
             {
                 TrackEvent ev = helper.GetSelectedEvent();
-                result1 = VegasHelperUtility.NanoToTimestamp(VegasHelperUtility.RoundNanos(helper.GetEventStartTime(ev)));
-                result2 = VegasHelperUtility.NanoToTimestamp(VegasHelperUtility.RoundNanos(helper.GetEventLength(ev)));
+                result1 = helper.GetEventStartTime(ev).ToString();
+                result2 = helper.GetEventLength(ev).ToString();
             }
             catch (VegasHelperTrackUnselectedException)
             {
@@ -68,8 +68,10 @@ namespace VegasScriptShowSelectedEventTime
         {
             DockableControl dock = new DockableControl(DockName);
 
-            FlowLayoutPanel panel = new FlowLayoutPanel();
-            panel.Dock = DockStyle.Fill;
+            FlowLayoutPanel panel = new FlowLayoutPanel()
+            {
+                Dock = DockStyle.Fill
+            };
 
             Label label1 = CreateLabel("Result1", GetStartTimeString(result1));
             panel.Controls.Add(label1);
@@ -103,12 +105,14 @@ namespace VegasScriptShowSelectedEventTime
 
         private Label CreateLabel(string name, string text)
         {
-            Label label = new Label();
-            label.Name = name;
-            label.Dock = DockStyle.Fill;
-            label.AutoSize = true;
-            label.Text = text;
-            label.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            Label label = new Label()
+            { 
+                Name = name,
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                Text = text,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+            };
             return label;
         }
 
