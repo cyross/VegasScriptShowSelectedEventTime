@@ -1,47 +1,85 @@
 ﻿using ScriptPortal.Vegas;
 using System;
 using System.Collections;
+using System.Diagnostics;
+using System.Drawing;
 using System.Windows.Forms;
 using VegasScriptHelper;
 
 namespace VegasScriptShowSelectedEventTime
 {
-    public class CustomModule : ICustomCommandModule
+    public class MyDockableControl : DockableControl
     {
-        private VegasHelper helper;
-        private readonly static string CommandName = "ShowTrackLength";
-        private readonly static string DisplayName = "選択したイベントの開始位置・長さを表示";
-        private readonly static string DockName = "イベントの開始位置・長さ";
-        private readonly CustomCommand myCommand = new CustomCommand(CommandCategory.View, CommandName);
+        public readonly static string DockName = "[MY]イベントの開始位置・長さ";
+        public readonly static string DockDisplayName = "[MY]選択したイベントの開始位置・長さを表示";
+        private readonly VegasHelper Helper;
 
-        public void InitializeModule(Vegas vegas)
+        public MyDockableControl(VegasHelper helper) : base(DockName)
         {
-            helper = VegasHelper.Instance(vegas);
+            DisplayName = DockDisplayName;
+            Helper = helper;
         }
 
-        public ICollection GetCustomCommands()
+        public override DockWindowStyle DefaultDockWindowStyle
         {
-            helper.AddTrackEventStateChangedEventHandler(ShowDockView); // イベントをクリックすると自動的に表示される
-            myCommand.DisplayName = DisplayName;
-            myCommand.Invoked += HandleInvoked;
-            myCommand.MenuPopup += HandleMenuPopup;
-            return new CustomCommand[] { myCommand };
+            get { return DockWindowStyle.Docked; }
         }
 
-        void HandleInvoked(Object sender, EventArgs e)
+        public override Size DefaultFloatingSize
         {
-            ShowDockView(sender, e);
+            get { return new Size(320, 240); }
         }
 
-        void ShowDockView(Object sender, EventArgs e)
+        protected override void OnLoad(EventArgs args)
+        {
+            try
+            {
+                string[] results = GetStartAndLength();
+
+                FlowLayoutPanel panel = new FlowLayoutPanel()
+                {
+                    Dock = DockStyle.Fill
+                };
+
+                Label label1 = CreateLabel("Result1", GetStartTimeString(results[0]));
+                panel.Controls.Add(label1);
+
+                Label label2 = CreateLabel("Result2", GetLengthString(results[1]));
+                label2.TextAlign = ContentAlignment.MiddleLeft;
+                panel.Controls.Add(label2);
+
+                Controls.Add(panel);
+
+                Helper.LoadDockView(this);
+            }
+            catch (Exception ex)
+            {
+                string errMessage = "[MESSAGE]" + ex.Message + "\n[SOURCE]" + ex.Source + "\n[STACKTRACE]" + ex.StackTrace;
+                Debug.WriteLine("---[Exception In Helper]---");
+                Debug.WriteLine(errMessage);
+                Debug.WriteLine("---------------------------");
+                MessageBox.Show(
+                    errMessage,
+                    "エラー",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                throw ex;
+            }
+        }
+        protected override void OnClosed(EventArgs args)
+        {
+            base.OnClosed(args);
+        }
+
+        private string[] GetStartAndLength()
         {
             string result1 = "";
             string result2 = "";
             try
             {
-                TrackEvent ev = helper.GetSelectedEvent();
-                result1 = helper.GetEventStartTime(ev).ToString();
-                result2 = helper.GetEventLength(ev).ToString();
+                TrackEvent ev = Helper.GetSelectedEvent();
+                result1 = Helper.GetEventStartTime(ev).ToString();
+                result2 = Helper.GetEventLength(ev).ToString();
             }
             catch (VegasHelperTrackUnselectedException)
             {
@@ -55,58 +93,21 @@ namespace VegasScriptShowSelectedEventTime
             {
                 // 空文字列のままで良いのでpass
             }
-            if (!helper.ActivateDockView(DockName))
-            {
-                LoadDockView(result1, result2);
-            }
-            else
-            {
-                UpdateDockView(result1, result2);
-            }
-        }
-        void LoadDockView(string result1, string result2)
-        {
-            DockableControl dock = new DockableControl(DockName);
 
-            FlowLayoutPanel panel = new FlowLayoutPanel()
-            {
-                Dock = DockStyle.Fill
-            };
-
-            Label label1 = CreateLabel("Result1", GetStartTimeString(result1));
-            panel.Controls.Add(label1);
-
-            Label label2 = CreateLabel("Result2", GetLengthString(result2));
-            label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            panel.Controls.Add(label2);
-
-            dock.Controls.Add(panel);
-
-            helper.LoadDockView(dock);
+            return new string[] { result1, result2 };
         }
 
-        void HandleMenuPopup(Object sender, EventArgs e)
+        public void UpdateLabel()
         {
-            myCommand.Checked = helper.FindDockView(DockName);
-        }
-
-        void UpdateDockView(string result1, string result2)
-        {
-            IDockView dockView = null;
-            if(!helper.FindDockView(DockName, ref dockView))
-            {
-                LoadDockView(result1, result2);
-                return;
-            }
-            DockableControl dock = (DockableControl)dockView;
-            ((Label)(dock.Controls[0].Controls[0])).Text = GetStartTimeString(result1);
-            ((Label)(dock.Controls[0].Controls[1])).Text = GetLengthString(result2);
+            string[] results = GetStartAndLength();
+            Controls[0].Controls[0].Text = GetStartTimeString(results[0]);
+            Controls[0].Controls[1].Text = GetLengthString(results[1]);
         }
 
         private Label CreateLabel(string name, string text)
         {
             Label label = new Label()
-            { 
+            {
                 Name = name,
                 Dock = DockStyle.Fill,
                 AutoSize = true,
@@ -126,6 +127,56 @@ namespace VegasScriptShowSelectedEventTime
         {
             // ウインドウをドッキングさせるとタイトルが隠れるため「イベントの」で明示
             return string.Format("イベントの長さ:{0}", timeString);
+        }
+    }
+
+    public class CustomModule : ICustomCommandModule
+    {
+        private VegasHelper myHelper;
+        private readonly static string CommandName = "ShowEventTime";
+        private readonly CustomCommand myCommand = new CustomCommand(CommandCategory.View, CommandName);
+
+        public void InitializeModule(Vegas vegas)
+        {
+            myHelper = VegasHelper.Instance(vegas);
+        }
+
+        public ICollection GetCustomCommands()
+        {
+            myHelper.AddTrackEventStateChangedEventHandler(OnTrackEventStateChanged); // イベントをクリックすると自動的に表示される
+            myCommand.DisplayName = MyDockableControl.DockDisplayName;
+            myCommand.Invoked += HandleInvoked;
+            myCommand.MenuPopup += HandleMenuPopup;
+            return new CustomCommand[] { myCommand };
+        }
+
+        void HandleInvoked(Object sender, EventArgs e)
+        {
+            if (!myHelper.ActivateDockView(MyDockableControl.DockName))
+            {
+                MyDockableControl dock = new MyDockableControl(myHelper)
+                {
+                    AutoLoadCommand = myCommand,
+                    PersistDockWindowState = true
+                };
+                myHelper.LoadDockView(dock);
+            }
+        }
+
+        void HandleMenuPopup(Object sender, EventArgs e)
+        {
+            myCommand.Checked = myHelper.FindDockView(MyDockableControl.DockName);
+        }
+
+        void OnTrackEventStateChanged(Object sender, EventArgs e)
+        {
+            IDockView dockView = null;
+
+            if (myHelper.FindDockView(MyDockableControl.DockName, ref dockView))
+            {
+                MyDockableControl myDockViewControl = (MyDockableControl)dockView;
+                myDockViewControl.UpdateLabel();
+            }
         }
     }
 }
